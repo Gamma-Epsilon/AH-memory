@@ -61,3 +61,31 @@ class RetrievalConfig:
             raise ValueError("Коэффициент активности гиперребер не может быть отрицательным.")
         if self.complexity_weight < 0:
             raise ValueError("Коэффициент штрафа за сложность не может быть отрицательным.")
+
+
+@dataclass(frozen=True)
+class OptimizationConfig:
+    """Хранит параметры эволюционной оптимизации топологии."""
+
+    population_size: int = 80
+    n_generations: int = 50
+    crossover_probability: float = 0.9
+    mutation_probability: float | None = None
+    eliminate_duplicates: bool = True
+    min_selected_hyperedges: int = 1
+    max_selected_hyperedges: int | None = None
+    seed: int = 42
+
+    def __post_init__(self) -> None:
+        if self.population_size <= 0:
+            raise ValueError("Размер популяции должен быть положительным.")
+        if self.n_generations <= 0:
+            raise ValueError("Число поколений должно быть положительным.")
+        if not 0 <= self.crossover_probability <= 1:
+            raise ValueError("Вероятность кроссовера должна быть в диапазоне от нуля до единицы.")
+        if self.mutation_probability is not None and not 0 <= self.mutation_probability <= 1:
+            raise ValueError("Вероятность мутации должна быть в диапазоне от нуля до единицы.")
+        if self.min_selected_hyperedges < 0:
+            raise ValueError("Минимальное число гиперребер не может быть отрицательным.")
+        if self.max_selected_hyperedges is not None and self.max_selected_hyperedges < self.min_selected_hyperedges:
+            raise ValueError("Максимальное число гиперребер не может быть меньше минимального.")

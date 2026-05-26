@@ -13,6 +13,7 @@ from ah_memory.metrics import (
     exact_match_accuracy,
     structural_metrics,
 )
+from ah_memory.optimization import AHMemoryTopologyProblem, run_nsga2
 from ah_memory.patterns import (
     ClusteredPatternData,
     PatternTestCase,
@@ -36,6 +37,7 @@ __all__ = [
     "RetrievalConfig",
     "RetrievalResult",
     "SymbolSet",
+    "AHMemoryTopologyProblem",
     "average_recovery_accuracy",
     "close_pattern_confusion_rate",
     "close_pattern_discrimination",
@@ -46,5 +48,6 @@ __all__ = [
     "generate_clustered_pattern_data",
     "generate_clustered_patterns",
     "prepare_pattern_tests",
+    "run_nsga2",
     "structural_metrics",
 ]
