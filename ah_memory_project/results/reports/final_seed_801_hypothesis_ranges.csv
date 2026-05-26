@@ -1,0 +1,4 @@
+metric,min,max,mean,solution_count
+average_hyperedge_size,2.0,2.0714285714285716,2.0357142857142856,2
+density,0.21666666666666667,0.23333333333333334,0.225,2
+hyperedge_count,13.0,14.0,13.5,2
