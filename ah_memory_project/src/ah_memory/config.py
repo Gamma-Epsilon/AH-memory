@@ -114,3 +114,24 @@ class OptimizationConfig:
             raise ValueError("Веса структурной сложности не могут быть отрицательными.")
         if abs(complexity_weight_sum - 1.0) > 1e-9:
             raise ValueError("Веса структурной сложности должны суммарно давать единицу.")
+
+
+@dataclass(frozen=True)
+class BaselineConfig:
+    """Хранит параметры построения базовых топологий."""
+
+    n_random_runs: int = 10
+    min_selected_hyperedges: int = 1
+    max_selected_hyperedges: int | None = None
+    selected_hyperedges: int | None = None
+    seed: int = 42
+
+    def __post_init__(self) -> None:
+        if self.n_random_runs <= 0:
+            raise ValueError("Число случайных запусков должно быть положительным.")
+        if self.min_selected_hyperedges < 0:
+            raise ValueError("Минимальное число гиперребер не может быть отрицательным.")
+        if self.max_selected_hyperedges is not None and self.max_selected_hyperedges < self.min_selected_hyperedges:
+            raise ValueError("Максимальное число гиперребер не может быть меньше минимального.")
+        if self.selected_hyperedges is not None and self.selected_hyperedges < 0:
+            raise ValueError("Число выбираемых гиперребер не может быть отрицательным.")
