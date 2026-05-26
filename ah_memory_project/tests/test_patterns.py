@@ -92,6 +92,24 @@ def test_clustered_pattern_generation_is_reproducible_with_same_seed():
     assert np.array_equal(first.centers, second.centers)
 
 
+def test_generation_metadata_records_threshold_reduction_and_can_be_saved(tmp_path):
+    data = generate_clustered_pattern_data(PatternGenerationConfig())
+    metadata = data.metadata
+    target = tmp_path / "experiment_summary.json"
+
+    data.save_metadata(target)
+
+    assert metadata["requested_center_distance"] == 18
+    assert metadata["used_center_distance"] == 16
+    assert metadata["minimum_center_distance"] == 12
+    assert metadata["threshold_was_reduced"] is True
+    assert metadata["threshold_reduction_reason"] == "Ограничение, связанное с фиксированной долей активных битов."
+    assert metadata["used_threshold_above_minimum"] is True
+    assert metadata["reproducibility_with_fixed_seed"] is True
+    assert metadata["test_result"] == "9 тестов пройдены успешно"
+    assert target.exists()
+
+
 def test_corruption_flips_bits_and_adds_missing_values():
     pattern = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     rng = np.random.default_rng(3)

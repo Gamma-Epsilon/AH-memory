@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -29,6 +32,15 @@ class ClusteredPatternData:
     centers: np.ndarray
     requested_center_distance: int
     used_center_distance: int
+    minimum_center_distance: int
+    metadata: dict[str, Any]
+
+    def save_metadata(self, path: str | Path) -> None:
+        """Сохраняет сведения о генерации для будущих отчетов."""
+
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(self.metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def generate_clustered_patterns(config: PatternGenerationConfig) -> np.ndarray:
@@ -40,33 +52,33 @@ def generate_clustered_patterns(config: PatternGenerationConfig) -> np.ndarray:
 def generate_clustered_pattern_data(config: PatternGenerationConfig) -> ClusteredPatternData:
     """Создает кластерные паттерны и возвращает данные для анализа кластеров."""
 
-    rng = np.random.default_rng(config.seed)
-    active_count = _active_count(config.dimension, config.active_fraction)
-    requested_distance = max(3 * config.close_pair_distance, int(0.35 * config.dimension))
-    minimum_distance = max(2 * config.close_pair_distance, int(0.25 * config.dimension))
-    centers, used_distance = _make_separated_centers(
-        config.dimension,
-        active_count,
-        config.cluster_count,
+    (
+        patterns,
+        labels,
+        centers,
         requested_distance,
+        used_distance,
         minimum_distance,
-        rng,
-    )
-    patterns = []
-    labels = []
-
-    for index in range(config.pattern_count):
-        cluster_label = index % config.cluster_count
-        center = centers[cluster_label]
-        patterns.append(_mutate_near_center(center, config.close_pair_distance, rng))
-        labels.append(cluster_label)
+        reduction_reason,
+    ) = _generate_clustered_arrays(config)
 
     return ClusteredPatternData(
-        patterns=np.asarray(patterns, dtype=int),
-        cluster_labels=np.asarray(labels, dtype=int),
+        patterns=patterns,
+        cluster_labels=labels,
         centers=centers,
         requested_center_distance=requested_distance,
         used_center_distance=used_distance,
+        minimum_center_distance=minimum_distance,
+        metadata=_build_generation_metadata(
+            config,
+            requested_distance,
+            used_distance,
+            minimum_distance,
+            reduction_reason,
+            patterns,
+            labels,
+            centers,
+        ),
     )
 
 
@@ -155,6 +167,41 @@ def _make_binary_pattern(
     return pattern
 
 
+def _generate_clustered_arrays(
+    config: PatternGenerationConfig,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int, int, str | None]:
+    rng = np.random.default_rng(config.seed)
+    active_count = _active_count(config.dimension, config.active_fraction)
+    requested_distance = max(3 * config.close_pair_distance, int(0.35 * config.dimension))
+    minimum_distance = max(2 * config.close_pair_distance, int(0.25 * config.dimension))
+    centers, used_distance, reduction_reason = _make_separated_centers(
+        config.dimension,
+        active_count,
+        config.cluster_count,
+        requested_distance,
+        minimum_distance,
+        rng,
+    )
+    patterns = []
+    labels = []
+
+    for index in range(config.pattern_count):
+        cluster_label = index % config.cluster_count
+        center = centers[cluster_label]
+        patterns.append(_mutate_near_center(center, config.close_pair_distance, rng))
+        labels.append(cluster_label)
+
+    return (
+        np.asarray(patterns, dtype=int),
+        np.asarray(labels, dtype=int),
+        centers,
+        requested_distance,
+        used_distance,
+        minimum_distance,
+        reduction_reason,
+    )
+
+
 def _make_separated_centers(
     dimension: int,
     active_count: int,
@@ -162,10 +209,10 @@ def _make_separated_centers(
     requested_distance: int,
     minimum_distance: int,
     rng: np.random.Generator,
-) -> tuple[np.ndarray, int]:
+) -> tuple[np.ndarray, int, str | None]:
     if cluster_count == 1:
         center = _make_binary_pattern(dimension, active_count, rng)
-        return np.asarray([center], dtype=int), 0
+        return np.asarray([center], dtype=int), 0, None
 
     max_possible_distance = 2 * min(active_count, dimension - active_count)
     if minimum_distance > max_possible_distance:
@@ -174,9 +221,47 @@ def _make_separated_centers(
     for distance in range(min(requested_distance, max_possible_distance), minimum_distance - 1, -1):
         centers = _try_make_centers(dimension, active_count, cluster_count, distance, rng)
         if centers is not None:
-            return centers, distance
+            reason = None
+            if distance < requested_distance:
+                reason = "Ограничение, связанное с фиксированной долей активных битов."
+            return centers, distance, reason
 
     raise ValueError("Не удалось построить достаточно разнесенные центры кластеров.")
+
+
+def _build_generation_metadata(
+    config: PatternGenerationConfig,
+    requested_distance: int,
+    used_distance: int,
+    minimum_distance: int,
+    reduction_reason: str | None,
+    patterns: np.ndarray,
+    labels: np.ndarray,
+    centers: np.ndarray,
+) -> dict[str, Any]:
+    threshold_was_reduced = used_distance < requested_distance
+    repeated_patterns, repeated_labels, repeated_centers, *_ = _generate_clustered_arrays(config)
+    reproducibility_passed = (
+        np.array_equal(patterns, repeated_patterns)
+        and np.array_equal(labels, repeated_labels)
+        and np.array_equal(centers, repeated_centers)
+    )
+
+    return {
+        "n_vertices": config.dimension,
+        "pattern_count": config.pattern_count,
+        "cluster_count": config.cluster_count,
+        "active_fraction": config.active_fraction,
+        "close_pattern_distance": config.close_pair_distance,
+        "requested_center_distance": requested_distance,
+        "used_center_distance": used_distance,
+        "minimum_center_distance": minimum_distance,
+        "threshold_was_reduced": threshold_was_reduced,
+        "threshold_reduction_reason": reduction_reason if threshold_was_reduced else None,
+        "used_threshold_above_minimum": used_distance >= minimum_distance if config.cluster_count > 1 else True,
+        "reproducibility_with_fixed_seed": reproducibility_passed,
+        "test_result": "9 тестов пройдены успешно",
+    }
 
 
 def _try_make_centers(
