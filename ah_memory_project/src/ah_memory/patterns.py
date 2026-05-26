@@ -20,21 +20,54 @@ class PatternTestCase:
     missing_level: float
 
 
+@dataclass(frozen=True)
+class ClusteredPatternData:
+    """Хранит паттерны вместе с центрами и метками кластеров."""
+
+    patterns: np.ndarray
+    cluster_labels: np.ndarray
+    centers: np.ndarray
+    requested_center_distance: int
+    used_center_distance: int
+
+
 def generate_clustered_patterns(config: PatternGenerationConfig) -> np.ndarray:
     """Создает бинарные паттерны с близостью внутри кластеров."""
 
+    return generate_clustered_pattern_data(config).patterns
+
+
+def generate_clustered_pattern_data(config: PatternGenerationConfig) -> ClusteredPatternData:
+    """Создает кластерные паттерны и возвращает данные для анализа кластеров."""
+
     rng = np.random.default_rng(config.seed)
     active_count = _active_count(config.dimension, config.active_fraction)
-    centers = np.vstack(
-        [_make_binary_pattern(config.dimension, active_count, rng) for _ in range(config.cluster_count)]
+    requested_distance = max(3 * config.close_pair_distance, int(0.35 * config.dimension))
+    minimum_distance = max(2 * config.close_pair_distance, int(0.25 * config.dimension))
+    centers, used_distance = _make_separated_centers(
+        config.dimension,
+        active_count,
+        config.cluster_count,
+        requested_distance,
+        minimum_distance,
+        rng,
     )
     patterns = []
+    labels = []
 
     for index in range(config.pattern_count):
-        center = centers[index % config.cluster_count]
-        patterns.append(_mutate_near_center(center, config.intra_cluster_flips, rng))
+        cluster_label = index % config.cluster_count
+        center = centers[cluster_label]
+        patterns.append(_mutate_near_center(center, config.close_pair_distance, rng))
+        labels.append(cluster_label)
 
-    return np.asarray(patterns, dtype=int)
+    return ClusteredPatternData(
+        patterns=np.asarray(patterns, dtype=int),
+        cluster_labels=np.asarray(labels, dtype=int),
+        centers=centers,
+        requested_center_distance=requested_distance,
+        used_center_distance=used_distance,
+    )
 
 
 def corrupt_pattern(
@@ -122,6 +155,52 @@ def _make_binary_pattern(
     return pattern
 
 
+def _make_separated_centers(
+    dimension: int,
+    active_count: int,
+    cluster_count: int,
+    requested_distance: int,
+    minimum_distance: int,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, int]:
+    if cluster_count == 1:
+        center = _make_binary_pattern(dimension, active_count, rng)
+        return np.asarray([center], dtype=int), 0
+
+    max_possible_distance = 2 * min(active_count, dimension - active_count)
+    if minimum_distance > max_possible_distance:
+        raise ValueError("Нижний порог межкластерного расстояния недостижим при заданной доле активных битов.")
+
+    for distance in range(min(requested_distance, max_possible_distance), minimum_distance - 1, -1):
+        centers = _try_make_centers(dimension, active_count, cluster_count, distance, rng)
+        if centers is not None:
+            return centers, distance
+
+    raise ValueError("Не удалось построить достаточно разнесенные центры кластеров.")
+
+
+def _try_make_centers(
+    dimension: int,
+    active_count: int,
+    cluster_count: int,
+    min_distance: int,
+    rng: np.random.Generator,
+) -> np.ndarray | None:
+    centers: list[np.ndarray] = []
+    attempts_per_center = 2000
+
+    for _ in range(cluster_count):
+        for _ in range(attempts_per_center):
+            candidate = _make_binary_pattern(dimension, active_count, rng)
+            if all(_hamming_distance(candidate, center) >= min_distance for center in centers):
+                centers.append(candidate)
+                break
+        else:
+            return None
+
+    return np.asarray(centers, dtype=int)
+
+
 def _mutate_near_center(
     center: np.ndarray,
     flips: int,
@@ -140,6 +219,10 @@ def _mutate_near_center(
     pattern[turn_off] = 0
     pattern[turn_on] = 1
     return pattern
+
+
+def _hamming_distance(left: np.ndarray, right: np.ndarray) -> int:
+    return int(np.sum(left != right))
 
 
 def _active_count(dimension: int, active_fraction: float) -> int:

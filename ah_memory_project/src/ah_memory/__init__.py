@@ -5,9 +5,11 @@ from ah_memory.history import Episode, EpisodeMemory
 from ah_memory.knowledge import Hyperedge, KnowledgeHypergraph
 from ah_memory.memory import AHMemory
 from ah_memory.patterns import (
+    ClusteredPatternData,
     PatternTestCase,
     corrupt_pattern,
     find_close_pairs,
+    generate_clustered_pattern_data,
     generate_clustered_patterns,
     prepare_pattern_tests,
 )
@@ -20,10 +22,12 @@ __all__ = [
     "EpisodeMemory",
     "Hyperedge",
     "KnowledgeHypergraph",
+    "ClusteredPatternData",
     "PatternTestCase",
     "SymbolSet",
     "corrupt_pattern",
     "find_close_pairs",
+    "generate_clustered_pattern_data",
     "generate_clustered_patterns",
     "prepare_pattern_tests",
 ]
