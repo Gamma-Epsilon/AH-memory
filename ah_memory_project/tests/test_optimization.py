@@ -42,6 +42,34 @@ def test_topology_problem_uses_generation_config_for_close_threshold():
     assert out["F"].shape == (4,)
 
 
+def test_complexity_objective_uses_fixed_weight_structure():
+    patterns = np.array([[1, 1, 0, 0], [0, 0, 1, 1]])
+    problem = AHMemoryTopologyProblem(
+        patterns=patterns,
+        tests=[PatternTestCase(0, patterns[0], patterns[0], 0.0, 0.0)],
+        candidate_pool=[(0, 1), (0, 2), (2, 3), (1, 3)],
+        retrieval_config=RetrievalConfig(),
+        generation_config=PatternGenerationConfig(
+            pattern_count=2,
+            dimension=4,
+            active_fraction=0.5,
+            cluster_count=1,
+            close_pair_distance=1,
+        ),
+        optimization_config=OptimizationConfig(max_selected_hyperedges=2),
+    )
+    metrics = {
+        "hyperedge_count": 2,
+        "density": 0.5,
+        "average_hyperedge_size": 2.0,
+        "vertex_degree_variance": 1.0,
+    }
+
+    complexity = problem._complexity_objective(metrics)
+
+    assert complexity == 0.35 * 1.0 + 0.25 * 0.5 + 0.25 * 0.5 + 0.15 * 0.25
+
+
 def test_run_nsga2_short_check_returns_table_with_close_threshold():
     patterns = np.array([[1, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 1]])
     tests = [
@@ -77,4 +105,41 @@ def test_run_nsga2_short_check_returns_table_with_close_threshold():
     assert result.F is not None
     assert not table.empty
     assert "close_pattern_distance" in table.columns
+    assert set(table["close_pattern_distance"]) == {1}
+
+
+def test_run_nsga2_short_check_works_with_parallel_workers():
+    patterns = np.array([[1, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 1]])
+    tests = [
+        PatternTestCase(0, patterns[0], np.array([1, 1, -1, -1]), 0.0, 0.5),
+        PatternTestCase(1, patterns[1], np.array([1, 0, -1, -1]), 0.0, 0.5),
+        PatternTestCase(2, patterns[2], np.array([-1, -1, 1, 1]), 0.0, 0.5),
+    ]
+    configs = {
+        "optimization_config": OptimizationConfig(
+            population_size=6,
+            n_generations=2,
+            max_selected_hyperedges=2,
+            parallel_workers=2,
+            seed=5,
+        ),
+        "retrieval_config": RetrievalConfig(),
+        "generation_config": PatternGenerationConfig(
+            pattern_count=3,
+            dimension=4,
+            active_fraction=0.5,
+            cluster_count=1,
+            close_pair_distance=1,
+        ),
+    }
+
+    result, table = run_nsga2(
+        patterns=patterns,
+        tests=tests,
+        candidate_pool=[(0, 1), (0, 2), (2, 3)],
+        configs=configs,
+    )
+
+    assert result.F is not None
+    assert not table.empty
     assert set(table["close_pattern_distance"]) == {1}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,20 @@ from pymoo.optimize import minimize
 from ah_memory.config import OptimizationConfig, PatternGenerationConfig, RetrievalConfig
 from ah_memory.knowledge import Hyperedge
 from ah_memory.metrics import evaluate_memory
+
+
+class ParallelElementwiseRunner:
+    """Выполняет независимые оценки решений через пул работников."""
+
+    def __init__(self, workers: int = 1) -> None:
+        self.workers = workers
+
+    def __call__(self, evaluate_one: Any, population: np.ndarray) -> list[dict[str, Any]]:
+        if self.workers <= 1:
+            return [evaluate_one(solution) for solution in population]
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            return list(executor.map(evaluate_one, population))
 
 
 class AHMemoryTopologyProblem(ElementwiseProblem):
@@ -45,6 +60,7 @@ class AHMemoryTopologyProblem(ElementwiseProblem):
             xl=0,
             xu=1,
             vtype=bool,
+            elementwise_runner=ParallelElementwiseRunner(optimization_config.parallel_workers),
         )
 
     def _evaluate(self, x: np.ndarray, out: dict[str, Any], *args: Any, **kwargs: Any) -> None:
@@ -109,14 +125,14 @@ class AHMemoryTopologyProblem(ElementwiseProblem):
         return 0.0
 
     def _complexity_objective(self, metrics: dict[str, Any]) -> float:
-        edge_norm = metrics["hyperedge_count"] / max(1, len(self.candidate_pool))
+        edge_norm = metrics["hyperedge_count"] / max(1, self.max_selected)
         mean_size_norm = metrics["average_hyperedge_size"] / max(1, self.patterns.shape[1])
-        degree_variance_norm = metrics["vertex_degree_variance"] / max(1, len(self.candidate_pool))
+        degree_variance_norm = metrics["vertex_degree_variance"] / max(1, self.max_selected**2)
         return float(
-            0.35 * edge_norm
-            + 0.35 * metrics["density"]
-            + 0.15 * mean_size_norm
-            + 0.15 * degree_variance_norm
+            self.optimization_config.complexity_edge_count_weight * edge_norm
+            + self.optimization_config.complexity_density_weight * metrics["density"]
+            + self.optimization_config.complexity_hyperedge_size_weight * mean_size_norm
+            + self.optimization_config.complexity_degree_variance_weight * degree_variance_norm
         )
 
 

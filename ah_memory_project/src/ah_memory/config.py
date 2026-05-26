@@ -74,6 +74,11 @@ class OptimizationConfig:
     eliminate_duplicates: bool = True
     min_selected_hyperedges: int = 1
     max_selected_hyperedges: int | None = None
+    parallel_workers: int = 1
+    complexity_edge_count_weight: float = 0.35
+    complexity_density_weight: float = 0.25
+    complexity_hyperedge_size_weight: float = 0.25
+    complexity_degree_variance_weight: float = 0.15
     seed: int = 42
 
     def __post_init__(self) -> None:
@@ -89,3 +94,23 @@ class OptimizationConfig:
             raise ValueError("Минимальное число гиперребер не может быть отрицательным.")
         if self.max_selected_hyperedges is not None and self.max_selected_hyperedges < self.min_selected_hyperedges:
             raise ValueError("Максимальное число гиперребер не может быть меньше минимального.")
+        if self.parallel_workers <= 0:
+            raise ValueError("Число параллельных работников должно быть положительным.")
+        complexity_weight_sum = (
+            self.complexity_edge_count_weight
+            + self.complexity_density_weight
+            + self.complexity_hyperedge_size_weight
+            + self.complexity_degree_variance_weight
+        )
+        if any(
+            weight < 0
+            for weight in (
+                self.complexity_edge_count_weight,
+                self.complexity_density_weight,
+                self.complexity_hyperedge_size_weight,
+                self.complexity_degree_variance_weight,
+            )
+        ):
+            raise ValueError("Веса структурной сложности не могут быть отрицательными.")
+        if abs(complexity_weight_sum - 1.0) > 1e-9:
+            raise ValueError("Веса структурной сложности должны суммарно давать единицу.")
