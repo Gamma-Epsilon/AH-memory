@@ -117,6 +117,34 @@ class OptimizationConfig:
 
 
 @dataclass(frozen=True)
+class HypergraphConfig:
+    """Хранит параметры построения пула кандидатных гиперребер."""
+
+    candidate_pool_size: int = 40
+    min_hyperedge_size: int = 2
+    max_hyperedge_size: int = 4
+    random_fraction: float = 0.25
+
+    def __post_init__(self) -> None:
+        if self.candidate_pool_size <= 0:
+            raise ValueError("Размер пула гиперребер должен быть положительным.")
+        if self.min_hyperedge_size <= 0:
+            raise ValueError("Минимальная кратность гиперребра должна быть положительной.")
+        if self.max_hyperedge_size < self.min_hyperedge_size:
+            raise ValueError("Максимальная кратность не может быть меньше минимальной.")
+        if not 0 <= self.random_fraction <= 1:
+            raise ValueError("Доля случайного дополнения должна быть от нуля до единицы.")
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    """Хранит общие параметры запуска эксперимента."""
+
+    seed: int = 42
+    output_dir: str = "results"
+
+
+@dataclass(frozen=True)
 class BaselineConfig:
     """Хранит параметры построения базовых топологий."""
 

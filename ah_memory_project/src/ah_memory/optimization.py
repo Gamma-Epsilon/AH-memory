@@ -169,6 +169,7 @@ def run_nsga2(
         seed=optimization_config.seed,
         verbose=False,
     )
+    result.evaluated_metrics_table = pd.DataFrame(problem.evaluated_metrics)
     return result, _pareto_metrics_table(problem, result)
 
 
