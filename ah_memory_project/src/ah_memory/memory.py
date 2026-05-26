@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Any
+
 import numpy as np
 
+from ah_memory.config import RetrievalConfig
 from ah_memory.focus import ActivationFocus
 from ah_memory.history import Episode, EpisodeMemory
 from ah_memory.knowledge import KnowledgeHypergraph
 from ah_memory.symbols import SymbolSet
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    """Хранит результат восстановления одного тестового входа."""
+
+    original_index: int | None
+    restored_index: int
+    restored_pattern: np.ndarray
+    accuracy: float | None
+    exact_match: bool | None
+    score: float
 
 
 class AHMemory:
@@ -19,11 +35,13 @@ class AHMemory:
         knowledge: KnowledgeHypergraph | None = None,
         history: EpisodeMemory | None = None,
         focus: ActivationFocus | None = None,
+        retrieval_config: RetrievalConfig | None = None,
     ) -> None:
         self.symbol_set = symbol_set
         self.knowledge = knowledge or KnowledgeHypergraph(symbol_set.dimension)
         self.history = history or EpisodeMemory()
-        self.focus = focus or ActivationFocus()
+        self.retrieval_config = retrieval_config or RetrievalConfig()
+        self.focus = focus or ActivationFocus(self.retrieval_config)
         self.patterns = np.empty((0, symbol_set.dimension), dtype=int)
         self.last_score = 0.0
 
@@ -42,20 +60,29 @@ class AHMemory:
         self.patterns = np.vstack([self.patterns, prepared])
         self.knowledge.update_weights(self.patterns)
 
-    def retrieve(self, query: np.ndarray) -> tuple[int, np.ndarray]:
+    def score_pattern(self, query: np.ndarray, candidate: np.ndarray) -> float:
+        """Считает оценку сохраненного паттерна для искаженного входа."""
+
+        prepared_query = self.symbol_set.validate_pattern(query)
+        prepared_candidate = self.symbol_set.validate_pattern(candidate)
+        return self.focus.score(prepared_query, prepared_candidate, self.knowledge)
+
+    def retrieve(self, query: np.ndarray, return_score: bool = False) -> tuple[int, np.ndarray] | tuple[int, np.ndarray, float]:
         """Восстанавливает наиболее подходящий сохраненный паттерн."""
 
         prepared_query = self.symbol_set.validate_pattern(query)
-        best_index, score = self.focus.best_match(prepared_query, self.patterns, self.knowledge)
+        best_index, score = self._best_match(prepared_query)
         restored = self.patterns[best_index].copy()
         self.last_score = score
         self.add_episode(restored, prepared_query, restored, score)
+        if return_score:
+            return best_index, restored, score
         return best_index, restored
 
-    def retrieve_batch(self, tests: list[np.ndarray] | np.ndarray) -> list[tuple[int, np.ndarray]]:
-        """Последовательно восстанавливает набор искаженных входов."""
+    def retrieve_batch(self, tests: list[Any] | np.ndarray) -> list[RetrievalResult]:
+        """Восстанавливает набор тестов и считает качество каждого ответа."""
 
-        return [self.retrieve(test) for test in tests]
+        return [self._retrieve_single_test(test) for test in tests]
 
     def add_episode(
         self,
@@ -73,3 +100,34 @@ class AHMemory:
         if prepared.ndim != 2 or prepared.shape[1] != self.symbol_set.dimension:
             raise ValueError("Набор паттернов должен быть двумерным и согласованным с множеством символов.")
         return prepared.astype(int)
+
+    def _best_match(self, query: np.ndarray) -> tuple[int, float]:
+        if len(self.patterns) == 0:
+            raise ValueError("Память не содержит сохраненных паттернов.")
+
+        scores = [self.score_pattern(query, candidate) for candidate in self.patterns]
+        best_index = int(np.argmax(scores))
+        return best_index, float(scores[best_index])
+
+    def _retrieve_single_test(self, test: Any) -> RetrievalResult:
+        original_index = getattr(test, "pattern_index", None)
+        original = getattr(test, "original", None)
+        distorted = getattr(test, "distorted", test)
+
+        restored_index, restored, score = self.retrieve(distorted, return_score=True)
+        accuracy = None
+        exact_match = None
+
+        if original is not None:
+            prepared_original = self.symbol_set.validate_pattern(original)
+            accuracy = float(np.mean(restored == prepared_original))
+            exact_match = bool(np.array_equal(restored, prepared_original))
+
+        return RetrievalResult(
+            original_index=original_index,
+            restored_index=restored_index,
+            restored_pattern=restored,
+            accuracy=accuracy,
+            exact_match=exact_match,
+            score=score,
+        )

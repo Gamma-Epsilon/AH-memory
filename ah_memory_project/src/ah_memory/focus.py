@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import numpy as np
 
+from ah_memory.config import RetrievalConfig
 from ah_memory.knowledge import KnowledgeHypergraph
 
 
 class ActivationFocus:
     """Считает оценку соответствия запроса сохраненному паттерну."""
 
-    def __init__(self, complexity_penalty: float = 0.01) -> None:
-        if complexity_penalty < 0:
-            raise ValueError("Штраф за сложность не может быть отрицательным.")
-        self.complexity_penalty = float(complexity_penalty)
+    def __init__(
+        self,
+        config: RetrievalConfig | None = None,
+        complexity_penalty: float | None = None,
+    ) -> None:
+        if complexity_penalty is not None:
+            config = RetrievalConfig(complexity_weight=complexity_penalty)
+        self.config = config or RetrievalConfig()
 
     def score(
         self,
@@ -31,9 +36,13 @@ class ActivationFocus:
         else:
             bit_score = float(np.mean(prepared_query[known_mask] == prepared_candidate[known_mask]))
 
-        edge_score = self._edge_score(prepared_query, prepared_candidate, knowledge)
-        penalty = self.complexity_penalty * knowledge.complexity()
-        return bit_score + edge_score - penalty
+        edge_score = self.edge_activity(prepared_query, prepared_candidate, knowledge)
+        complexity_penalty = len(knowledge.hyperedges)
+        return (
+            self.config.bit_match_weight * bit_score
+            + self.config.hyperedge_weight * edge_score
+            - self.config.complexity_weight * complexity_penalty
+        )
 
     def best_match(
         self,
@@ -50,14 +59,15 @@ class ActivationFocus:
         best_index = int(np.argmax(scores))
         return best_index, float(scores[best_index])
 
-    def _edge_score(
+    def edge_activity(
         self,
         query: np.ndarray,
         candidate: np.ndarray,
         knowledge: KnowledgeHypergraph,
     ) -> float:
+        """Суммирует веса гиперребер, активных и во входе, и в паттерне."""
+
         active_weight = 0.0
-        possible_weight = 0.0
 
         for edge in knowledge.hyperedges:
             edge_query = query[list(edge.symbols)]
@@ -65,13 +75,10 @@ class ActivationFocus:
                 continue
             if not np.all(edge_query == 1):
                 continue
-            possible_weight += edge.weight
             if np.all(candidate[list(edge.symbols)] == 1):
                 active_weight += edge.weight
 
-        if possible_weight == 0.0:
-            return 0.0
-        return float(active_weight / possible_weight)
+        return float(active_weight)
 
     @staticmethod
     def _known_mask(values: np.ndarray) -> np.ndarray:

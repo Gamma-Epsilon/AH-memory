@@ -44,3 +44,20 @@ class PatternGenerationConfig:
             raise ValueError(f"{label} должны содержать хотя бы одно значение.")
         if any(level < 0 or level > 1 for level in levels):
             raise ValueError(f"{label} должны быть в диапазоне от нуля до единицы.")
+
+
+@dataclass(frozen=True)
+class RetrievalConfig:
+    """Хранит коэффициенты для восстановления паттернов из памяти."""
+
+    bit_match_weight: float = 1.0
+    hyperedge_weight: float = 1.0
+    complexity_weight: float = 0.01
+
+    def __post_init__(self) -> None:
+        if self.bit_match_weight < 0:
+            raise ValueError("Коэффициент совпадения битов не может быть отрицательным.")
+        if self.hyperedge_weight < 0:
+            raise ValueError("Коэффициент активности гиперребер не может быть отрицательным.")
+        if self.complexity_weight < 0:
+            raise ValueError("Коэффициент штрафа за сложность не может быть отрицательным.")
