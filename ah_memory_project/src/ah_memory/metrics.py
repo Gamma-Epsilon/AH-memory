@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from ah_memory.config import RetrievalConfig
+from ah_memory.config import PatternGenerationConfig, RetrievalConfig
 from ah_memory.knowledge import Hyperedge, KnowledgeHypergraph
 from ah_memory.memory import AHMemory, RetrievalResult
 from ah_memory.patterns import find_close_pairs
@@ -117,6 +117,7 @@ def functional_metrics(
         "accuracy_by_noise_and_missing": robustness["accuracy_by_noise_and_missing"],
         "close_pattern_discrimination": close_pattern_discrimination(results, close_pairs),
         "close_pattern_confusion_rate": close_pattern_confusion_rate(results, close_pairs),
+        "close_pair_count": len(close_pairs),
     }
 
 
@@ -187,6 +188,9 @@ def evaluate_memory(
     tests: list[Any],
     retrieval_config: RetrievalConfig | None,
     candidate_pool_size: int,
+    generation_config: PatternGenerationConfig | None = None,
+    close_pattern_distance: int | None = None,
+    allow_close_distance_margin: bool = False,
 ) -> dict[str, Any]:
     """Создает память с заданной топологией и возвращает все метрики."""
 
@@ -202,9 +206,15 @@ def evaluate_memory(
     memory = AHMemory(symbol_set, knowledge=knowledge, retrieval_config=retrieval_config)
     memory.fit(prepared_patterns)
     results = memory.retrieve_batch(tests)
-    close_pairs = find_close_pairs(prepared_patterns, max_distance=_close_pair_threshold(tests))
+    close_threshold = _resolve_close_pair_threshold(
+        generation_config,
+        close_pattern_distance,
+        allow_close_distance_margin,
+    )
+    close_pairs = find_close_pairs(prepared_patterns, max_distance=close_threshold)
 
     metrics = functional_metrics(results, tests, close_pairs)
+    metrics["close_pattern_distance"] = close_threshold
     metrics.update(structural_metrics(memory.knowledge, candidate_pool_size))
     return metrics
 
@@ -242,13 +252,17 @@ def _edge_symbols(edge: Hyperedge | tuple[int, ...] | list[int]) -> tuple[int, .
     return tuple(int(symbol) for symbol in edge)
 
 
-def _close_pair_threshold(tests: list[Any]) -> int:
-    distances = []
-    for test in tests:
-        original = getattr(test, "original", None)
-        distorted = getattr(test, "distorted", None)
-        if original is None or distorted is None:
-            continue
-        mask = np.asarray(distorted) != -1
-        distances.append(int(np.sum(np.asarray(original)[mask] != np.asarray(distorted)[mask])))
-    return max(distances) if distances else 0
+def _resolve_close_pair_threshold(
+    generation_config: PatternGenerationConfig | None,
+    close_pattern_distance: int | None,
+    allow_margin: bool,
+) -> int:
+    if close_pattern_distance is None:
+        if generation_config is None:
+            raise ValueError("Для метрик близких паттернов нужен явный порог или конфигурация генерации.")
+        close_pattern_distance = generation_config.close_pair_distance
+
+    if close_pattern_distance < 0:
+        raise ValueError("Порог близости паттернов не может быть отрицательным.")
+
+    return int(close_pattern_distance + 1 if allow_margin else close_pattern_distance)

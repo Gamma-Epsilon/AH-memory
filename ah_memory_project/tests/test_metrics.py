@@ -1,6 +1,7 @@
+import pytest
 import numpy as np
 
-from ah_memory.config import RetrievalConfig
+from ah_memory.config import PatternGenerationConfig, RetrievalConfig
 from ah_memory.knowledge import KnowledgeHypergraph
 from ah_memory.memory import RetrievalResult
 from ah_memory.metrics import (
@@ -91,9 +92,99 @@ def test_evaluate_memory_returns_functional_and_structural_metrics():
         tests=tests,
         retrieval_config=RetrievalConfig(),
         candidate_pool_size=4,
+        close_pattern_distance=4,
     )
 
     assert metrics["average_recovery_accuracy"] == 1.0
     assert metrics["exact_match_accuracy"] == 1.0
     assert metrics["hyperedge_count"] == 2
     assert metrics["density"] == 0.5
+
+
+def test_evaluate_memory_uses_configured_close_pattern_distance():
+    patterns = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 0, 0, 0],
+            [0, 0, 1, 1],
+        ]
+    )
+    tests = [
+        PatternTestCase(
+            pattern_index=0,
+            original=patterns[0],
+            distorted=np.array([1, 0, 0, 0]),
+            noise_level=1.0,
+            missing_level=0.0,
+        ),
+        PatternTestCase(
+            pattern_index=1,
+            original=patterns[1],
+            distorted=np.array([1, 0, 0, 0]),
+            noise_level=0.0,
+            missing_level=0.0,
+        ),
+        PatternTestCase(
+            pattern_index=2,
+            original=patterns[2],
+            distorted=np.array([0, 0, 1, 1]),
+            noise_level=0.0,
+            missing_level=0.0,
+        ),
+    ]
+    generation_config = PatternGenerationConfig(
+        pattern_count=3,
+        dimension=4,
+        active_fraction=0.5,
+        cluster_count=1,
+        close_pair_distance=1,
+    )
+
+    metrics = evaluate_memory(
+        patterns=patterns,
+        topology=[(0, 1), (2, 3)],
+        tests=tests,
+        retrieval_config=RetrievalConfig(),
+        candidate_pool_size=4,
+        generation_config=generation_config,
+    )
+
+    assert metrics["close_pattern_distance"] == 1
+    assert metrics["close_pair_count"] == 1
+    assert metrics["close_pattern_discrimination"] == 0.5
+    assert metrics["close_pattern_confusion_rate"] == 0.5
+
+
+def test_evaluate_memory_can_use_close_pattern_distance_margin():
+    patterns = np.array([[1, 1, 0, 0], [0, 1, 0, 0]])
+    tests = [
+        PatternTestCase(0, patterns[0], patterns[0], 0.0, 0.0),
+        PatternTestCase(1, patterns[1], patterns[1], 0.0, 0.0),
+    ]
+
+    metrics = evaluate_memory(
+        patterns=patterns,
+        topology=[(0, 1)],
+        tests=tests,
+        retrieval_config=RetrievalConfig(),
+        candidate_pool_size=2,
+        close_pattern_distance=0,
+        allow_close_distance_margin=True,
+    )
+
+    assert metrics["close_pattern_distance"] == 1
+    assert metrics["close_pair_count"] == 1
+
+
+def test_evaluate_memory_requires_explicit_close_pattern_threshold():
+    patterns = np.array([[1, 0], [0, 1]])
+    tests = [PatternTestCase(0, patterns[0], patterns[0], 0.0, 0.0)]
+
+    with pytest.raises(ValueError, match="порог"):
+        evaluate_memory(
+            patterns=patterns,
+            topology=[(0, 1)],
+            tests=tests,
+            retrieval_config=RetrievalConfig(),
+            candidate_pool_size=1,
+        )
