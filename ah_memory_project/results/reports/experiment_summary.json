@@ -91,5 +91,25 @@
     "H1": "Пока не подтверждается.",
     "H2": "Требует анализа Парето-фронта и структурных диапазонов.",
     "H3": "Пока не подтверждается."
+  },
+  "figures": {
+    "pareto_accuracy_complexity": "figures/pareto_accuracy_complexity.png",
+    "pareto_robustness_discrimination": "figures/pareto_robustness_discrimination.png",
+    "baseline_comparison_boxplot": "figures/baseline_comparison_boxplot.png",
+    "noise_curve_best_vs_baselines": "figures/noise_curve_best_vs_baselines.png",
+    "degree_distribution_best_accuracy": "figures/degree_distribution_best_accuracy.png",
+    "hyperedge_size_histogram_best_accuracy": "figures/hyperedge_size_histogram_best_accuracy.png"
+  },
+  "statistics": {
+    "hypothesis_tests": "reports/hypothesis_tests.csv",
+    "hypothesis_ranges": "reports/hypothesis_ranges.csv",
+    "hypothesis_summary": "reports/hypothesis_summary.txt",
+    "hypotheses": {
+      "H1": "На имеющихся данных не подтверждается; вывод предварительный.",
+      "H2": "Наблюдаются диапазоны структурных параметров для верхней четверти решений; вывод предварительный.",
+      "H3": "На имеющихся данных не подтверждается; вывод предварительный."
+    },
+    "test_count": 12,
+    "range_count": 3
   }
 }
