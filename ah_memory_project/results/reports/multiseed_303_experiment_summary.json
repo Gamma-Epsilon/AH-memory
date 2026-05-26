@@ -1,0 +1,115 @@
+{
+  "generation": {
+    "n_vertices": 32,
+    "pattern_count": 30,
+    "cluster_count": 3,
+    "active_fraction": 0.25,
+    "close_pattern_distance": 6,
+    "requested_center_distance": 18,
+    "used_center_distance": 14,
+    "minimum_center_distance": 12,
+    "threshold_was_reduced": true,
+    "threshold_reduction_reason": "Ограничение, связанное с фиксированной долей активных битов.",
+    "used_threshold_above_minimum": true,
+    "reproducibility_with_fixed_seed": true,
+    "test_result": "9 тестов пройдены успешно"
+  },
+  "close_pattern_distance_used": 6,
+  "hypergraph": {
+    "candidate_pool_size": 50,
+    "min_hyperedge_size": 2,
+    "max_hyperedge_size": 4,
+    "random_fraction": 0.25
+  },
+  "tests": {
+    "test_count": 180,
+    "noise_levels": [
+      0.0,
+      0.1,
+      0.2
+    ],
+    "missing_levels": [
+      0.0,
+      0.2
+    ],
+    "trials_per_pattern": 1
+  },
+  "optimization": {
+    "population_size": 16,
+    "n_generations": 4,
+    "parallel_workers": 4,
+    "min_selected_hyperedges": 2,
+    "max_selected_hyperedges": 25,
+    "evaluated_solution_count": 64,
+    "pareto_solution_count": 7
+  },
+  "baselines": {
+    "random_runs": 8,
+    "rows": 11
+  },
+  "tables": {
+    "patterns": "tables/multiseed_303_patterns.csv",
+    "candidate_pool": "tables/multiseed_303_candidate_pool.csv",
+    "pareto_solutions": "tables/multiseed_303_pareto_solutions.csv",
+    "nsga_objectives": "tables/multiseed_303_nsga_objectives.csv",
+    "baseline_metrics": "tables/multiseed_303_baseline_metrics.csv"
+  },
+  "pareto_summary": {
+    "best_recovery_accuracy": 0.962900641025641,
+    "best_noise_robustness": 0.962900641025641,
+    "best_close_pattern_discrimination": 0.8968253968253969,
+    "lowest_complexity": 0.3047524739583333,
+    "mean_hyperedge_count": 20.571428571428573
+  },
+  "baseline_summary": {
+    "dense": {
+      "best_recovery_accuracy": 0.9528311965811966,
+      "best_noise_robustness": 0.9528311965811966,
+      "best_close_pattern_discrimination": 0.8412698412698413,
+      "mean_hyperedge_count": 25.0
+    },
+    "frequency": {
+      "best_recovery_accuracy": 0.9528311965811966,
+      "best_noise_robustness": 0.9528311965811966,
+      "best_close_pattern_discrimination": 0.8412698412698413,
+      "mean_hyperedge_count": 25.0
+    },
+    "pairwise": {
+      "best_recovery_accuracy": 0.9495459401709402,
+      "best_noise_robustness": 0.9495459401709402,
+      "best_close_pattern_discrimination": 0.8412698412698413,
+      "mean_hyperedge_count": 25.0
+    },
+    "random": {
+      "best_recovery_accuracy": 0.9730502136752136,
+      "best_noise_robustness": 0.9730502136752136,
+      "best_close_pattern_discrimination": 0.9047619047619048,
+      "mean_hyperedge_count": 14.75
+    }
+  },
+  "hypotheses": {
+    "H1": "Пока не подтверждается.",
+    "H2": "Требует анализа Парето-фронта и структурных диапазонов.",
+    "H3": "Пока не подтверждается."
+  },
+  "figures": {
+    "pareto_accuracy_complexity": "figures/multiseed_303_pareto_accuracy_complexity.png",
+    "pareto_robustness_discrimination": "figures/multiseed_303_pareto_robustness_discrimination.png",
+    "baseline_comparison_boxplot": "figures/multiseed_303_baseline_comparison_boxplot.png",
+    "noise_curve_best_vs_baselines": "figures/multiseed_303_noise_curve_best_vs_baselines.png",
+    "degree_distribution_best_accuracy": "figures/multiseed_303_degree_distribution_best_accuracy.png",
+    "hyperedge_size_histogram_best_accuracy": "figures/multiseed_303_hyperedge_size_histogram_best_accuracy.png"
+  },
+  "statistics": {
+    "hypothesis_tests": "reports/multiseed_303_hypothesis_tests.csv",
+    "hypothesis_ranges": "reports/multiseed_303_hypothesis_ranges.csv",
+    "hypothesis_summary": "reports/multiseed_303_hypothesis_summary.txt",
+    "hypotheses": {
+      "H1": "Частично поддерживается относительно случайных топологий, вывод предварительный.",
+      "H2": "Наблюдаются диапазоны структурных параметров для верхней четверти решений; вывод предварительный.",
+      "H3": "На имеющихся данных не подтверждается; вывод предварительный."
+    },
+    "test_count": 12,
+    "range_count": 3
+  }
+}
