@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,23 +20,25 @@ from ah_memory.visualization import create_all_figures
 
 
 def main() -> None:
-    results_dir = ROOT_DIR / "results"
+    args = _parse_args()
+    prefix = args.file_prefix
+    results_dir = _resolve_results_dir(args.results_dir)
     tables_dir = results_dir / "tables"
     figures_dir = results_dir / "figures"
     reports_dir = results_dir / "reports"
 
-    pareto_df = pd.read_csv(tables_dir / "pareto_solutions.csv")
-    baseline_df = pd.read_csv(tables_dir / "baseline_metrics.csv")
-    candidate_df = pd.read_csv(tables_dir / "candidate_pool.csv")
-    summary_path = reports_dir / "experiment_summary.json"
+    pareto_df = pd.read_csv(tables_dir / f"{prefix}pareto_solutions.csv")
+    baseline_df = pd.read_csv(tables_dir / f"{prefix}baseline_metrics.csv")
+    candidate_df = pd.read_csv(tables_dir / f"{prefix}candidate_pool.csv")
+    summary_path = reports_dir / f"{prefix}experiment_summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
-    figures = create_all_figures(pareto_df, baseline_df, candidate_df, summary, figures_dir)
-    statistics = run_statistical_analysis(pareto_df, baseline_df, reports_dir)
+    figures = create_all_figures(pareto_df, baseline_df, candidate_df, summary, figures_dir, file_prefix=prefix)
+    statistics = run_statistical_analysis(pareto_df, baseline_df, reports_dir, file_prefix=prefix)
     summary["figures"] = _relative_paths(figures, results_dir)
     summary["statistics"] = statistics
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    _append_report(results_dir / "report.md", summary, figures, statistics, pareto_df, baseline_df)
+    _append_report(results_dir / "report.md", summary, figures, statistics, pareto_df, baseline_df, args.report_title, args.experiment_note)
 
 
 def _append_report(
@@ -45,6 +48,8 @@ def _append_report(
     statistics: dict[str, Any],
     pareto_df: pd.DataFrame,
     baseline_df: pd.DataFrame,
+    title: str,
+    experiment_note: str,
 ) -> None:
     prefix = "\n\n" if report_path.exists() and report_path.read_text(encoding="utf-8").strip() else ""
     baseline_names = ", ".join(sorted(str(name) for name in baseline_df["baseline"].unique()))
@@ -54,9 +59,28 @@ def _append_report(
         figure_lines = ["- Данных для построения графиков недостаточно."]
 
     lines = [
-        "## Визуализация и статистический анализ",
+        f"## {title}",
         "",
-        "Эксперимент выполнен с умеренными параметрами, поэтому статистические выводы следует считать предварительными.",
+        experiment_note,
+        "",
+        "Сгенерированы данные с "
+        f"{summary['generation']['n_vertices']} вершинами, {summary['generation']['pattern_count']} паттернами "
+        f"и {summary['generation']['cluster_count']} кластерами. Порог близости для близких паттернов равен "
+        f"{summary['close_pattern_distance_used']}. Межкластерный целевой порог равен "
+        f"{summary['generation']['requested_center_distance']}, фактически использованный порог равен "
+        f"{summary['generation']['used_center_distance']}.",
+        "",
+        "По сравнению с умеренным запуском увеличены число поколений, размер популяции, размер пула гиперребер "
+        "и число случайных базовых топологий. Использованы параллельные вычисления.",
+        "",
+        f"На Парето-фронте получено {len(pareto_df)} решений. Лучшая точность восстановления равна "
+        f"{pareto_df['average_recovery_accuracy'].max():.3f}, лучшая устойчивость равна "
+        f"{pareto_df['noise_robustness'].max():.3f}, лучшее различение близких паттернов равно "
+        f"{pareto_df['close_pattern_discrimination'].max():.3f}.",
+        "",
+        f"Среднее число гиперребер на Парето-фронте равно {pareto_df['hyperedge_count'].mean():.3f}, "
+        f"средняя плотность равна {pareto_df['density'].mean():.3f}, средняя кратность гиперребра равна "
+        f"{pareto_df['average_hyperedge_size'].mean():.3f}.",
         "",
         "Созданы графики:",
         *figure_lines,
@@ -91,6 +115,25 @@ def _relative_paths(paths: dict[str, str], base_dir: Path) -> dict[str, str]:
             except ValueError:
                 relative[name] = path_obj.as_posix()
     return relative
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Постанализ сохраненного эксперимента АГ-памяти.")
+    parser.add_argument("--results-dir", default="results")
+    parser.add_argument("--file-prefix", default="")
+    parser.add_argument("--report-title", default="Визуализация и статистический анализ")
+    parser.add_argument(
+        "--experiment-note",
+        default="Эксперимент выполнен с умеренными параметрами, поэтому статистические выводы следует считать предварительными.",
+    )
+    return parser.parse_args()
+
+
+def _resolve_results_dir(results_dir: str) -> Path:
+    path = Path(results_dir)
+    if not path.is_absolute():
+        path = ROOT_DIR / path
+    return path
 
 
 if __name__ == "__main__":

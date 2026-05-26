@@ -71,6 +71,7 @@ def run_statistical_analysis(
     pareto_df: pd.DataFrame,
     baseline_df: pd.DataFrame,
     reports_dir: str | Path,
+    file_prefix: str = "",
 ) -> dict[str, Any]:
     """Сохраняет таблицы статистики и текстовую сводку."""
 
@@ -83,14 +84,14 @@ def run_statistical_analysis(
     hypotheses = test_hypotheses(pareto_df, baseline_df)
 
     tests = all_tests if not all_tests.empty else random_tests
-    tests.to_csv(reports_path / "hypothesis_tests.csv", index=False)
-    ranges.to_csv(reports_path / "hypothesis_ranges.csv", index=False)
-    _write_hypothesis_summary(reports_path / "hypothesis_summary.txt", hypotheses)
+    tests.to_csv(reports_path / f"{file_prefix}hypothesis_tests.csv", index=False)
+    ranges.to_csv(reports_path / f"{file_prefix}hypothesis_ranges.csv", index=False)
+    _write_hypothesis_summary(reports_path / f"{file_prefix}hypothesis_summary.txt", hypotheses)
 
     return {
-        "hypothesis_tests": "reports/hypothesis_tests.csv",
-        "hypothesis_ranges": "reports/hypothesis_ranges.csv",
-        "hypothesis_summary": "reports/hypothesis_summary.txt",
+        "hypothesis_tests": f"reports/{file_prefix}hypothesis_tests.csv",
+        "hypothesis_ranges": f"reports/{file_prefix}hypothesis_ranges.csv",
+        "hypothesis_summary": f"reports/{file_prefix}hypothesis_summary.txt",
         "hypotheses": hypotheses,
         "test_count": int(len(tests)),
         "range_count": int(len(ranges)),

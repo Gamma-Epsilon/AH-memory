@@ -157,6 +157,7 @@ def create_all_figures(
     candidate_df: pd.DataFrame,
     summary: dict[str, Any],
     figures_dir: str | Path,
+    file_prefix: str = "",
 ) -> dict[str, str]:
     """Создает все доступные графики и возвращает пути к ним."""
 
@@ -166,16 +167,16 @@ def create_all_figures(
 
     figure_specs = {
         "pareto_accuracy_complexity": plot_accuracy_complexity(
-            pareto_df, figures_path / "pareto_accuracy_complexity.png"
+            pareto_df, figures_path / f"{file_prefix}pareto_accuracy_complexity.png"
         ),
         "pareto_robustness_discrimination": plot_robustness_discrimination(
-            pareto_df, figures_path / "pareto_robustness_discrimination.png"
+            pareto_df, figures_path / f"{file_prefix}pareto_robustness_discrimination.png"
         ),
         "baseline_comparison_boxplot": plot_baseline_comparison(
-            pareto_df, baseline_df, figures_path / "baseline_comparison_boxplot.png"
+            pareto_df, baseline_df, figures_path / f"{file_prefix}baseline_comparison_boxplot.png"
         ),
         "noise_curve_best_vs_baselines": plot_noise_curves(
-            pareto_df, baseline_df, figures_path / "noise_curve_best_vs_baselines.png"
+            pareto_df, baseline_df, figures_path / f"{file_prefix}noise_curve_best_vs_baselines.png"
         ),
     }
 
@@ -186,12 +187,12 @@ def create_all_figures(
             str(best["genome"]),
             candidate_df,
             n_vertices,
-            figures_path / "degree_distribution_best_accuracy.png",
+            figures_path / f"{file_prefix}degree_distribution_best_accuracy.png",
         )
         figure_specs["hyperedge_size_histogram_best_accuracy"] = plot_hyperedge_size_histogram_for_genome(
             str(best["genome"]),
             candidate_df,
-            figures_path / "hyperedge_size_histogram_best_accuracy.png",
+            figures_path / f"{file_prefix}hyperedge_size_histogram_best_accuracy.png",
         )
 
     for name, path in figure_specs.items():

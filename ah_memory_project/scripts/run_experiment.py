@@ -33,6 +33,7 @@ from ah_memory.patterns import generate_clustered_pattern_data, prepare_pattern_
 
 def main() -> None:
     args = _parse_args()
+    prefix = args.file_prefix
     experiment_config, generation_config, hypergraph_config, optimization_config = _make_configs(args)
     retrieval_config = RetrievalConfig()
     baseline_config = BaselineConfig(
@@ -80,7 +81,7 @@ def main() -> None:
         },
     )
 
-    _save_tables(tables_dir, pattern_data.patterns, candidate_table, pareto_table, nsga_objectives, baseline_table)
+    _save_tables(tables_dir, prefix, pattern_data.patterns, candidate_table, pareto_table, nsga_objectives, baseline_table)
     summary = _build_summary(
         pattern_data.metadata,
         generation_config,
@@ -92,9 +93,11 @@ def main() -> None:
         pareto_table,
         nsga_objectives,
         baseline_table,
+        prefix,
     )
-    _write_json(reports_dir / "experiment_summary.json", summary)
-    _append_report(output_dir / "report.md", summary, pareto_table, baseline_table)
+    _write_json(reports_dir / f"{prefix}experiment_summary.json", summary)
+    if not args.skip_report:
+        _append_report(output_dir / "report.md", summary, pareto_table, baseline_table, args.report_title)
 
 
 def build_candidate_pool(
@@ -165,17 +168,18 @@ def _joint_activation_frequencies(patterns: np.ndarray, config: HypergraphConfig
 
 def _save_tables(
     tables_dir: Path,
+    prefix: str,
     patterns: np.ndarray,
     candidate_table: pd.DataFrame,
     pareto_table: pd.DataFrame,
     nsga_objectives: pd.DataFrame,
     baseline_table: pd.DataFrame,
 ) -> None:
-    pd.DataFrame(patterns).to_csv(tables_dir / "patterns.csv", index=False)
-    candidate_table.to_csv(tables_dir / "candidate_pool.csv", index=False)
-    pareto_table.to_csv(tables_dir / "pareto_solutions.csv", index=False)
-    nsga_objectives.to_csv(tables_dir / "nsga_objectives.csv", index=False)
-    baseline_table.to_csv(tables_dir / "baseline_metrics.csv", index=False)
+    pd.DataFrame(patterns).to_csv(tables_dir / f"{prefix}patterns.csv", index=False)
+    candidate_table.to_csv(tables_dir / f"{prefix}candidate_pool.csv", index=False)
+    pareto_table.to_csv(tables_dir / f"{prefix}pareto_solutions.csv", index=False)
+    nsga_objectives.to_csv(tables_dir / f"{prefix}nsga_objectives.csv", index=False)
+    baseline_table.to_csv(tables_dir / f"{prefix}baseline_metrics.csv", index=False)
 
 
 def _build_summary(
@@ -189,6 +193,7 @@ def _build_summary(
     pareto_table: pd.DataFrame,
     nsga_objectives: pd.DataFrame,
     baseline_table: pd.DataFrame,
+    prefix: str = "",
 ) -> dict[str, Any]:
     return {
         "generation": generation_metadata,
@@ -219,11 +224,11 @@ def _build_summary(
             "rows": int(len(baseline_table)),
         },
         "tables": {
-            "patterns": "tables/patterns.csv",
-            "candidate_pool": "tables/candidate_pool.csv",
-            "pareto_solutions": "tables/pareto_solutions.csv",
-            "nsga_objectives": "tables/nsga_objectives.csv",
-            "baseline_metrics": "tables/baseline_metrics.csv",
+            "patterns": f"tables/{prefix}patterns.csv",
+            "candidate_pool": f"tables/{prefix}candidate_pool.csv",
+            "pareto_solutions": f"tables/{prefix}pareto_solutions.csv",
+            "nsga_objectives": f"tables/{prefix}nsga_objectives.csv",
+            "baseline_metrics": f"tables/{prefix}baseline_metrics.csv",
         },
         "pareto_summary": _table_summary(pareto_table),
         "baseline_summary": _baseline_summary(baseline_table),
@@ -280,7 +285,13 @@ def _hypothesis_summary(pareto_table: pd.DataFrame, baseline_table: pd.DataFrame
     }
 
 
-def _append_report(report_path: Path, summary: dict[str, Any], pareto_table: pd.DataFrame, baseline_table: pd.DataFrame) -> None:
+def _append_report(
+    report_path: Path,
+    summary: dict[str, Any],
+    pareto_table: pd.DataFrame,
+    baseline_table: pd.DataFrame,
+    title: str,
+) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     prefix = "\n\n" if report_path.exists() and report_path.read_text(encoding="utf-8").strip() else ""
     generation = summary["generation"]
@@ -289,7 +300,7 @@ def _append_report(report_path: Path, summary: dict[str, Any], pareto_table: pd.
     hypotheses = summary["hypotheses"]
 
     lines = [
-        "## Основной эксперимент",
+        f"## {title}",
         "",
         "Сгенерирован набор бинарных паттернов для проверки АГ-памяти. Использовано "
         f"{generation['n_vertices']} вершин, {generation['pattern_count']} паттернов и "
@@ -453,6 +464,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--crossover-probability", type=float, default=0.9)
     parser.add_argument("--mutation-probability", type=float, default=None)
     parser.add_argument("--baseline-runs", type=int, default=5)
+    parser.add_argument("--file-prefix", default="")
+    parser.add_argument("--report-title", default="Основной эксперимент")
+    parser.add_argument("--skip-report", action="store_true")
     return parser.parse_args()
 
 
