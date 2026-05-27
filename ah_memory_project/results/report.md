@@ -168,3 +168,16 @@ H3 нужно интерпретировать через индексную м�
 Для будущей статьи H2 можно использовать как центральный результат. H1 следует формулировать как преимущество над средним случайным baseline. H3 следует формулировать как частичное преимущество по строгой индексной метрике. Обязательно нужно указать, что лучший random baseline остаётся конкурентным. Статья должна подаваться как вычислительное исследование-предпосылка, а не как окончательное доказательство универсального превосходства NSGA-II.
 
 Дополнительные seed могут повысить статистическую устойчивость результатов, но текущая серия из 5 seed уже достаточна для подводящей исследовательской работы при осторожной интерпретации выводов.
+
+
+## Где лежат исходные данные
+
+Подробные результаты финальной серии seed находятся в `results/reports/final_summary.csv`, `results/reports/final_summary.md`, `results/reports/final_seed_*_summary.json`, `results/tables/final_seed_*_pareto_solutions.csv`, `results/tables/final_seed_*_nsga_objectives.csv` и `results/tables/final_seed_*_baseline_metrics.csv`. Эти файлы нужны для проверки итоговых метрик, Парето-фронтов, всех оценённых топологий и baseline по каждому seed.
+
+Результаты проверки чувствительности находятся в `results/reports/sensitivity_summary.csv`, `results/reports/sensitivity_summary.md`, `results/tables/sensitivity_*_pareto_solutions.csv` и `results/tables/sensitivity_*_baseline_metrics.csv`. Эти файлы нужны для сравнения уровней сложности, бюджетов NSGA-II и вариантов вклада гиперребер.
+
+Серия по нескольким seed описана в `results/reports/multiseed_summary.csv` и `results/reports/multiseed_summary.md`. Эти файлы нужны для предварительной проверки устойчивости H1, H2 и H3 до финальной постановки.
+
+Графики сохранены в `results/figures/`. Они нужны для просмотра Парето-фронтов, сравнений с baseline, кривых шума и структурных распределений.
+
+Сводные JSON-файлы находятся в `results/reports/*_summary.json`. Они нужны для машинно-читаемой фиксации параметров запусков, метрик, baseline и статусов гипотез.
