@@ -122,6 +122,17 @@
       "H1": "Подтверждается относительно среднего случайного baseline; частично поддерживается относительно лучшего случайного baseline.",
       "H2": "Наиболее устойчиво поддерживается: лучшие топологии повторяют диапазоны числа гиперребер, средней кратности и плотности.",
       "H3": "Поддерживается относительно среднего baseline и частично поддерживается относительно лучшего baseline; основной показатель — выбор исходного паттерна среди близких альтернатив."
-    }
+    },
+    "final_figures_built": true,
+    "final_figures": [
+      "results/figures/final_pareto_accuracy_complexity.png",
+      "results/figures/final_robustness_discrimination.png",
+      "results/figures/final_baseline_comparison.png",
+      "results/figures/final_h1_summary.png",
+      "results/figures/final_h2_structural_ranges.png",
+      "results/figures/final_h3_index_vs_bit_accuracy.png",
+      "results/figures/final_h3_confusion.png",
+      "results/figures/final_noise_curve.png"
+    ]
   }
 }
