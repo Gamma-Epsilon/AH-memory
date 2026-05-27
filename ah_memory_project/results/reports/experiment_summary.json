@@ -111,5 +111,17 @@
     },
     "test_count": 12,
     "range_count": 3
+  },
+  "finalization": {
+    "report": "results/report.md",
+    "final_summary_added": true,
+    "final_seed_series_completed": true,
+    "final_seed_series_summary": "results/reports/final_summary.md",
+    "final_seed_series_table": "results/reports/final_summary.csv",
+    "hypotheses": {
+      "H1": "Подтверждается относительно среднего случайного baseline; частично поддерживается относительно лучшего случайного baseline.",
+      "H2": "Наиболее устойчиво поддерживается: лучшие топологии повторяют диапазоны числа гиперребер, средней кратности и плотности.",
+      "H3": "Поддерживается относительно среднего baseline и частично поддерживается относительно лучшего baseline; основной показатель — выбор исходного паттерна среди близких альтернатив."
+    }
   }
 }
